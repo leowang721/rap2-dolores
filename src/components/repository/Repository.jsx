@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import { connect, PropTypes, Link, replace, StoreStateRouterLocationURI, moment } from '../../family'
+import { connect, PropTypes, Link, replace, moment } from '../../family'
 import { RModal } from '../utils'
 import { serve } from '../../relatives/services/constant'
 import RepositoryForm from './RepositoryForm'
@@ -36,7 +36,7 @@ class Repository extends Component {
             )}
           </div> */}
           <div className='toolbar'>
-            <Link to={`${serve}/app/plugin/${repository.id}`} target='_blank'><GoPlug /></Link>
+            <a href={`${serve}/app/plugin/${repository.id}`} target='_blank'><GoPlug /></a>
             {/* 编辑权限：拥有者或者成员 */}
             {repository.owner.id === auth.id || repository.members.find(itme => itme.id === auth.id)
               ? <span className='fake-link' onClick={e => this.setState({ update: true })}><GoPencil /></span>
@@ -46,7 +46,7 @@ class Repository extends Component {
               <RepositoryForm title='编辑仓库' repository={repository} />
             </RModal>
             {/* 删除权限：个人仓库 */}
-            {!repository.organization && repository.owner.id === auth.id
+            {repository.owner.id === auth.id
               ? <Link to={location.pathname + location.search} onClick={this.handleDeleteRepository}><GoTrashcan /></Link>
               : null
             }
@@ -75,9 +75,6 @@ class Repository extends Component {
     }
   }
   handleUpdateRepository = (e) => {
-    let { store } = this.context
-    let uri = StoreStateRouterLocationURI(store)
-    store.dispatch(replace(uri.href()))
   }
 }
 

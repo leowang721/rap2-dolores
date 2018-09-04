@@ -56,7 +56,7 @@ class Module extends Component {
         let uri = StoreStateRouterLocationURI(store)
         let deleteHref = this.props.active ? URI(uri).removeSearch('mod').href() : uri.href()
         store.dispatch(replace(deleteHref))
-      })
+      }, this.props.repository.id)
     }
   }
 }
@@ -97,7 +97,7 @@ class ModuleList extends Component {
                 <GoPackage className='fontsize-14' /> 新建模块
               </span>
               <RModal when={this.state.create} onClose={e => this.setState({ create: false })} onResolve={this.handleCreate}>
-                <ModuleForm title='新建模块' repository={repository} />}
+                <ModuleForm title='新建模块' repository={repository} />
               </RModal>
             </li>
             : null

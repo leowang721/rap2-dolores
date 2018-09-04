@@ -1,10 +1,12 @@
 import React, { Component } from 'react'
-import { PropTypes, connect, Link, replace, StoreStateRouterLocationURI } from '../../family'
+import { PropTypes, connect, Link } from '../../family'
 import { Tree, SmartTextarea, RModal, RSortable } from '../utils'
 import PropertyForm from './PropertyForm'
 import Importer from './Importer'
 import Previewer from './InterfacePreviewer'
 import { GoMention, GoFileCode, GoEye, GoPlus, GoTrashcan, GoQuestion } from 'react-icons/lib/go'
+import { rptFromStr2Num } from './InterfaceSummary'
+import './PropertyList.css'
 
 export const RequestPropertyListPreviewer = (props) => (
   <Previewer {...props} />
@@ -34,7 +36,7 @@ class SortableTreeTableHeader extends Component {
           {/* TODO 2.3 规则编辑器 */}
           <div className='th rule'>
             生成规则
-            <Link to='https://github.com/nuysoft/Mock/wiki/Syntax-Specification' className='helper' target='_blank'><GoQuestion /></Link>
+            <a href='https://github.com/nuysoft/Mock/wiki/Syntax-Specification' rel="noopener noreferrer" className='helper' target='_blank'><GoQuestion /></a>
           </div>
           <div className='th value'>初始值</div>{/* 对象和数组也允许设置初始值 */}
           <div className='th desc'>简介</div>
@@ -44,13 +46,24 @@ class SortableTreeTableHeader extends Component {
   }
 }
 
+const PropertyLabel = (props) => {
+  const { pos } = props
+  if (pos === 1) {
+    return <label className='ml5 badge badge-danger'>HEAD</label>
+  } else if (pos === 3) {
+    return <label className='ml5 badge badge-primary'>BODY</label>
+  } else {
+    return <label className='ml5 badge badge-secondary'>QUERY</label>
+  }
+}
+
 class SortableTreeTableRow extends Component {
   render () {
     let { property, editable } = this.props
     let { handleClickCreateChildPropertyButton, handleDeleteMemoryProperty, handleChangePropertyField, handleSortProperties } = this.props
     return (
       <RSortable group={property.depth} handle='.SortableTreeTableRow' disabled={!editable} onChange={handleSortProperties}>
-        <div className='RSortableWrapper'>
+        <div className={`RSortableWrapper depth${property.depth}`}>
           {property.children.sort((a, b) => a.priority - b.priority).map(item =>
             <div key={item.id} className='SortableTreeTableRow' data-id={item.id}>
               <div className='flex-row'>
@@ -64,7 +77,7 @@ class SortableTreeTableRow extends Component {
                 }
                 <div className={`td payload name depth-${item.depth} nowrap`}>
                   {!editable
-                    ? <span className='nowrap'>{item.name}</span>
+                    ? <span className='nowrap'>{item.name}{item.scope === 'request' && item.depth === 0 ? <PropertyLabel pos={item.pos} /> : null}</span>
                     : <input value={item.name} onChange={e => handleChangePropertyField(item.id, 'name', e.target.value)} className='form-control editable' spellCheck='false' placeholder='' />
                   }
                 </div>
@@ -134,7 +147,11 @@ class PropertyList extends Component {
     repository: PropTypes.object.isRequired,
     mod: PropTypes.object.isRequired,
     itf: PropTypes.object.isRequired,
-    editable: PropTypes.bool.isRequired
+    editable: PropTypes.bool.isRequired,
+
+    /** optional */
+    bodyOption: PropTypes.string,
+    requestParamsType: PropTypes.string
   }
   constructor (props) {
     super(props)
@@ -148,9 +165,12 @@ class PropertyList extends Component {
   render () {
     let { title, label, scope, properties = [], repository = {}, mod = {}, itf = {} } = this.props
     if (!itf.id) return null
-
+    let { editable, requestParamsType } = this.props // itf.locker && (itf.locker.id === auth.id)
+    const pos = rptFromStr2Num(requestParamsType)
     let scopedProperties = properties.map(property => ({ ...property })).filter(property => property.scope === scope)
-    let { editable } = this.props // itf.locker && (itf.locker.id === auth.id)
+    if (scope === 'request' && editable) {
+      scopedProperties = scopedProperties.filter(s => s.pos === pos)
+    }
 
     return (
       <section className='PropertyList'>
@@ -216,9 +236,6 @@ class PropertyList extends Component {
     handleChangeProperty({ ...property, [key]: value })
   }
   handleCreatePropertySucceeded = () => {
-    let { store } = this.context
-    let uri = StoreStateRouterLocationURI(store)
-    store.dispatch(replace(uri.href()))
   }
   handleDeleteMemoryProperty = (e, property) => {
     e.preventDefault()
@@ -226,8 +243,6 @@ class PropertyList extends Component {
     handleDeleteMemoryProperty(property)
   }
   handleSortProperties = (e, sortable) => {
-    // let { onSortPropertyList } = this.context
-    // onSortPropertyList(sortable.toArray())
     let { properties } = this.props
     let ids = sortable.toArray()
     ids.forEach((id, index) => {

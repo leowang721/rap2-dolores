@@ -18,13 +18,13 @@ class Importer extends Component {
     rmodal: PropTypes.instanceOf(Component),
     handleAddMemoryProperties: PropTypes.func.isRequired
   }
-  constructor (props) {
+  constructor(props) {
     super(props)
     this.state = {
       result: JSON.stringify(mockResult(), null, 2)
     }
   }
-  render () {
+  render() {
     const { rmodal } = this.context
     return (
       <section className='Importer'>
@@ -51,14 +51,14 @@ class Importer extends Component {
       </section>
     )
   }
-  componentDidUpdate () {
+  componentDidUpdate() {
     this.context.rmodal.reposition()
   }
   // DONE 2.1 支持格式化
   handleBeautify = (e) => {
     e.preventDefault()
     if (this.$rcm) {
-      let result = eval('(' + this.state.result + ')')  // eslint-disable-line no-eval
+      let result = eval('(' + this.state.result + ')') // eslint-disable-line no-eval
       let beautified = JSON.stringify(result, null, 2)
       this.$rcm.cm.setValue(beautified)
     }
@@ -75,23 +75,33 @@ class Importer extends Component {
     if (type === 'Array' && schema.items && schema.items.length > 1) {
       rule = schema.items.length
     }
+
+    let value = /Array|Object/.test(type) ? '' : schema.template
+    if (schema.items && schema.items.length) {
+      let childType = schema.items[0].type
+      if (['number', 'null', 'undefined', 'boolean', 'string'].indexOf(childType) > -1) {
+        value = JSON.stringify(schema.template)
+        rule = ''
+      }
+    }
+
     let property = Object.assign({
       name: schema.name,
       type,
       rule,
-      value: /Array|Object/.test(type) ? '' : schema.template,
+      value,
       descripton: ''
     }, {
-      creator: auth.id,
-      repositoryId: repository.id,
-      moduleId: mod.id,
-      interfaceId: itf.id,
-      scope,
-      parentId: parent.id
-    }, {
-      memory: true,
-      id: _.uniqueId('memory-')
-    })
+        creator: auth.id,
+        repositoryId: repository.id,
+        moduleId: mod.id,
+        interfaceId: itf.id,
+        scope,
+        parentId: parent.id
+      }, {
+        memory: true,
+        id: _.uniqueId('memory-')
+      })
     memoryProperties.push(property)
 
     if (schema.properties) {
@@ -104,7 +114,10 @@ class Importer extends Component {
   // DONE 2.1 因为 setState() 是异步的，导致重复调用 handleAddMemoryProperty() 时最后保留最后一个临时属性
   handleSubmit = (e) => {
     e.preventDefault()
-    let result = eval('(' + this.state.result + ')')  // eslint-disable-line no-eval
+    let result = eval('(' + this.state.result + ')') // eslint-disable-line no-eval
+    if (result instanceof Array) {
+      result = { _root_: result }
+    }
     let schema = Mock.toJSONSchema(result)
     let memoryProperties = []
     if (schema.properties) schema.properties.forEach(item => this.handleJSONSchema(item, undefined, memoryProperties))

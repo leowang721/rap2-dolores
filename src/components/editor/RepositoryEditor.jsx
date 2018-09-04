@@ -8,13 +8,14 @@ import ModuleList from './ModuleList'
 import InterfaceList from './InterfaceList'
 import InterfaceEditor from './InterfaceEditor'
 import DuplicatedInterfacesWarning from './DuplicatedInterfacesWarning'
-import { addRepository, updateRepository, clearRepository } from '../../actions/repository'
+import { addRepository, updateRepository, clearRepository, fetchRepository } from '../../actions/repository'
 import { addModule, updateModule, deleteModule, sortModuleList } from '../../actions/module'
 import { addInterface, updateInterface, deleteInterface, lockInterface, unlockInterface, sortInterfaceList } from '../../actions/interface'
 import { addProperty, updateProperty, deleteProperty, updateProperties, sortPropertyList } from '../../actions/property'
-import { GoRepo, GoPencil, GoPlug, GoDatabase, GoJersey } from 'react-icons/lib/go'
+import { GoRepo, GoPencil, GoPlug, GoDatabase, GoJersey, GoLinkExternal } from 'react-icons/lib/go'
 
 import './RepositoryEditor.css'
+import ExportPostmanForm from '../repository/ExportPostmanForm'
 
 // DONE 2.1 import Spin from '../utils/Spin'
 // TODO 2.2 缺少测试器
@@ -51,17 +52,29 @@ class RepositoryEditor extends Component {
     onDeleteProperty: PropTypes.func.isRequired,
     onSortPropertyList: PropTypes.func.isRequired
   }
-  getChildContext () {
+  getChildContext() {
     return _.pick(this.props, Object.keys(RepositoryEditor.childContextTypes))
   }
-  constructor (props) {
-    super(props)
-    this.state = {
-      update: false
+
+  componentDidMount() {
+    const id = +this.props.location.params.id
+    if (!this.props.repository.data || this.props.repository.data.id !== id) {
+      this.props.onFetchRepository({ id })
     }
   }
-  render () {
+
+  constructor(props) {
+    super(props)
+    this.state = {
+      update: false,
+      exportPostman: false
+    }
+  }
+  render() {
     let { location: { params }, auth, repository } = this.props
+    if (repository.data.name) {
+      document.title = `RAP2 ${repository.data.name}`
+    }
     if (!repository.fetching && !repository.data) return <div className='p100 fontsize-40 text-center'>404</div>
 
     repository = repository.data
@@ -91,6 +104,7 @@ class RepositoryEditor extends Component {
           </span>
           <div className='toolbar'>
             {/* 编辑权限：拥有者或者成员 */}
+
             {isOwned || isJoined
               ? <span className='fake-link edit' onClick={e => this.setState({ update: true })}><GoPencil /> 编辑</span>
               : null
@@ -98,9 +112,13 @@ class RepositoryEditor extends Component {
             <RModal when={this.state.update} onClose={e => this.setState({ update: false })} onResolve={this.handleUpdate}>
               <RepositoryForm title='编辑仓库' repository={repository} />
             </RModal>
-            <Link to={`${serve}/app/plugin/${repository.id}`} target='_blank' className='api'><GoPlug /> 插件</Link>
-            <Link to={`${serve}/repository/get?id=${repository.id}`} target='_blank' className='api'><GoDatabase /> 数据</Link>
-            <Link to={`${serve}/test/test.plugin.jquery.html?id=${repository.id}`} target='_blank' className='api'><GoJersey /> 测试</Link>
+            <a href={`${serve}/app/plugin/${repository.id}`} target='_blank' className='api'><GoPlug /> 插件</a>
+            <a href={`${serve}/repository/get?id=${repository.id}`} target='_blank' className='api'><GoDatabase /> 数据</a>
+            <a href={`${serve}/test/test.plugin.jquery.html?id=${repository.id}`} target='_blank' className='api'><GoJersey /> 测试</a>
+            <span className='fake-link edit' onClick={e => this.setState({ exportPostman: true })}><GoLinkExternal /> 导出Postman Collection</span>
+            <RModal when={this.state.exportPostman} onClose={e => this.setState({ exportPostman: false })} onResolve={e => this.setState({ exportPostman: false })}>
+              <ExportPostmanForm title='导出到Postman' repoId={repository.id} />
+            </RModal>
           </div>
           <RepositorySearcher repository={repository} />
           <div className='desc'>{repository.description}</div>
@@ -121,8 +139,8 @@ class RepositoryEditor extends Component {
     let { pathname, hash, search } = store.getState().router.location
     store.dispatch(replace(pathname + search + hash))
   }
-  componentWillUnmount () {
-    this.props.onClearRepository()
+  componentWillUnmount() {
+    // this.props.onClearRepository()
   }
 }
 
@@ -132,6 +150,7 @@ const mapStateToProps = (state) => ({
   repository: state.repository
 })
 const mapDispatchToProps = ({
+  onFetchRepository: fetchRepository,
   onAddRepository: addRepository,
   onUpdateRepository: updateRepository,
   onClearRepository: clearRepository,
